@@ -198,5 +198,6 @@ MIT
 Built by [Joaquin Mulet](https://github.com/JoaquinMulet) with [Claude Code](https://claude.com/claude-code).
 
 Standing on the shoulders of:
-- [Andrej Karpathy](https://github.com/karpathy) — autoresearch vision
-- [Udit Goenka](https://github.com/uditgoenka) — generalized autoresearch patterns
+- [Andrej Karpathy](https://github.com/karpathy/autoresearch) — the original autoresearch vision
+- [Udit Goenka](https://github.com/uditgoenka/autoresearch) — generalized autoresearch to non-ML tasks, Metric/Guard separation
+- [Frank Bria](https://github.com/frankbria/ralph-claude-code) — the Ralph Loop pattern for Claude Code (fresh context per iteration via stop-hook re-invocation)

@@ -170,4 +170,5 @@ only loop scripts and CLI flags need adaptation.
 
 - [Andrej Karpathy](https://github.com/karpathy/autoresearch) — original autoresearch vision
 - [Udit Goenka](https://github.com/uditgoenka/autoresearch) — Guard/Metric separation, rework patterns
+- [Frank Bria](https://github.com/frankbria/ralph-claude-code) — Ralph Loop pattern (fresh context per iteration)
 - Built with [Claude Code](https://claude.com/claude-code) by Anthropic
