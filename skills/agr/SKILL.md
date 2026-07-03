@@ -1,7 +1,7 @@
 ---
 name: agr
 description: "AGR: Artificial General Research — autonomous iterative optimization framework for Claude Code. Generalizes Karpathy's autoresearch to any measurable problem with variance-aware acceptance, correctness verification, and fresh-context-per-iteration (Ralph Loop). Use when setting up autoresearch, creating optimization loops, or autonomous research. Triggers on: autoresearch, AGR, auto research, optimization loop, auto optimize, artificial general research."
-argument-hint: [metric-to-optimize]
+argument-hint: "[metric-to-optimize]"
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
 ---
