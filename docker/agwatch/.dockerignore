@@ -1,0 +1,9 @@
+# agwatch build context: only watchdog.sh is needed
+.git
+.env
+README.md
+LICENSE
+cleanup.sh
+docker-compose.yml
+agldata/
+auth/

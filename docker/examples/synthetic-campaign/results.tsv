@@ -1,0 +1,3 @@
+# results log for the synthetic campaign
+# columns: commit, total_time_s, bench_alpha, bench_beta, status, description
+commit	total_time_s	bench_alpha	bench_beta	status	description
