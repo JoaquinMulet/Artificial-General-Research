@@ -1,0 +1,11 @@
+# agdash build context: only server.py is needed
+.git
+.env
+README.md
+LICENSE
+cleanup.sh
+docker-compose.yml
+agldata/
+auth/
+**/__pycache__/
+*.pyc

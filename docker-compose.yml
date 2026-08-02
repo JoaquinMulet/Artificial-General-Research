@@ -1,0 +1,123 @@
+﻿# AGR - Autonomous General Research campaign stack (Docker Compose).
+#
+# One deployment = ONE campaign. Containers:
+#   agloop-<CAMPAIGN>   loop + iterate + opencode agent (the campaign)
+#   agwatch-<CAMPAIGN>  watchdog: heartbeat + docker restart (atomic)
+#   agdash-<CAMPAIGN>   read-only dashboard on :8080
+#
+# Volumes:
+#   agldata-<CAMPAIGN>  campaign working copy (repo + agr_logs) - survives
+#                       container restarts; NOT bound to the host repo, so a
+#                       running campaign never touches the live repo.
+#   agrshared           shared volume for the optional cross-campaign mutex.
+#
+# Secrets are NEVER baked into images: agent auth is mounted read-only from
+# the host (~/.config/opencode) at runtime.
+#
+# Usage:
+#   copy .env.example to .env and edit AGR_CAMPAIGN / AGR_REPO_URL / auth
+#   docker compose up -d --build
+#   docker compose logs -f agloop-<CAMPAIGN>
+#   open http://localhost:${AGR_DASH_PORT:-8080}
+
+# Project name carries the campaign, so volumes (agldata, agrshared) are
+# prefixed per campaign (e.g. agr-myapp_agldata) - full isolation between
+# campaigns running from the same compose file.
+name: agr-${AGR_CAMPAIGN:-main}
+
+services:
+  agloop:
+    build: ./agloop
+    image: agr-agloop:latest
+    container_name: agloop-${AGR_CAMPAIGN:-main}
+    environment:
+      # provider-neutral defaults; override in .env for your provider/model
+      AGR_MODEL: ${AGR_MODEL:-your-model-provider/model}
+      AGR_VARIANT: ${AGR_VARIANT:-}
+      AGR_MAX_ITERATIONS: ${AGR_MAX_ITERATIONS:-200}
+      AGR_ITER_TIMEOUT_MIN: ${AGR_ITER_TIMEOUT_MIN:-40}
+      # campaign interface - generalize to ANY repo:
+      #   AGR_BENCH_CMD    how to run the benchmark (stdout "key: value" lines)
+      #   AGR_METRIC_KEY   which parsed key becomes ref_total (default total_time_s)
+      #   AGR_PROMPT_FILE  the agent's instructions file (default program.md)
+      #   AGR_AGENT        the opencode agent definition (default agr-optimizer)
+      #   AGR_RESULTS_FILE the campaign's results log (default results.tsv)
+      AGR_BENCH_CMD: ${AGR_BENCH_CMD:-python3 benchmark.py}
+      AGR_METRIC_KEY: ${AGR_METRIC_KEY:-total_time_s}
+      AGR_PROMPT_FILE: ${AGR_PROMPT_FILE:-program.md}
+      AGR_AGENT: ${AGR_AGENT:-agr-optimizer}
+      AGR_RESULTS_FILE: ${AGR_RESULTS_FILE:-results.tsv}
+      AGR_STALL_MINUTES: ${AGR_STALL_MINUTES:-25}
+      AGR_DRY_RUN: ${AGR_DRY_RUN:-0}
+      # optional cross-campaign mutex (see README "quiet windows")
+      AGR_LOCK_FILE: ${AGR_LOCK_FILE:-}
+      AGR_LOCK_WAIT_S: ${AGR_LOCK_WAIT_S:-600}
+      # optional measurement window "HH:MM-HH:MM"
+      AGR_QUIET_WINDOW: ${AGR_QUIET_WINDOW:-}
+      # seed repo: git URL cloned on first start, or local dir copied once
+      AGR_REPO_URL: ${AGR_REPO_URL:-}
+      AGR_SEED_DIR: ${AGR_SEED_DIR:-}
+      AGR_GIT_NAME: ${AGR_GIT_NAME:-AGR Loop}
+      AGR_GIT_EMAIL: ${AGR_GIT_EMAIL:-agr-loop@local}
+    volumes:
+      - agldata:/work
+      - agrshared:/shared
+      # seed dir (host path) or empty named volume: copied into /work once
+      - ${AGR_SEED_DIR:-seed-empty}:/seed:ro
+      # agent auth: mounted read-only from the host (never baked into the
+      # image); entrypoint copies it into a writable config dir
+      - ${OPENCODE_CONFIG_DIR:-./auth/opencode}:/auth:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "${AGR_CPUS:-8}"
+          memory: ${AGR_MEM_LIMIT:-4g}
+          pids: ${AGR_PIDS_LIMIT:-256}
+    # on-failure: a COMPLETED loop (exit 0) must not relaunch forever;
+    # crashes (exit != 0) do relaunch. Staleness is handled by agwatch.
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "/opt/agr/healthcheck.sh"]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      options:
+        max-size: 20m
+        max-file: "3"
+
+  agwatch:
+    build: ./agwatch
+    image: agr-agwatch:latest
+    container_name: agwatch-${AGR_CAMPAIGN:-main}
+    environment:
+      AGR_LOOP_NAME: agloop-${AGR_CAMPAIGN:-main}
+      AGR_PROJECT: agr-${AGR_CAMPAIGN:-main}
+      AGR_CAMPAIGN: ${AGR_CAMPAIGN:-main}
+      AGR_STALL_MINUTES: ${AGR_STALL_MINUTES:-25}
+      AGR_CHECK_INTERVAL_S: ${AGR_CHECK_INTERVAL_S:-300}
+      # auto-cleanup when the loop completes (see watchdog.sh)
+      AGR_AUTO_CLEANUP: ${AGR_AUTO_CLEANUP:-0}
+      AGR_PRUNE_IMAGES: ${AGR_PRUNE_IMAGES:-1}
+      AGR_PRUNE_SYSTEM: ${AGR_PRUNE_SYSTEM:-0}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: on-failure
+
+  agdash:
+    build: ./agdash
+    image: agr-agdash:latest
+    container_name: agdash-${AGR_CAMPAIGN:-main}
+    ports:
+      - "${AGR_DASH_PORT:-8080}:8080"
+    environment:
+      AGR_DASH_PORT: "8080"
+    volumes:
+      - agldata:/data:ro
+    restart: unless-stopped
+
+volumes:
+  agldata:
+  agrshared:
+  seed-empty:

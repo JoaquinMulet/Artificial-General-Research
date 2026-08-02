@@ -1,0 +1,11 @@
+# agloop build context: only the runtime scripts are needed by the image
+.git
+.env
+README.md
+LICENSE
+cleanup.sh
+docker-compose.yml
+agldata/
+auth/
+**/__pycache__/
+*.pyc
