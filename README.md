@@ -88,6 +88,41 @@ docker compose --env-file .env.myapp -p agr-myapp up -d
 docker compose --env-file .env.other -p agr-other up -d
 ```
 
+### Campaigns with native extensions (real-world case study)
+
+A campaign repo with a compiled extension (pybind11/C++ modules) needs three
+things that the pure-Python flow does not, learned the hard way:
+
+1. **`AGR_BUILD_CMD`** - the extension must be compiled and the package
+   registered BEFORE the first reference measurement, and again on every
+   container start (`pip install -e` writes to the container's ephemeral
+   site-packages, lost on recreation; `build_ext --inplace` is then a fast
+   no-op via setuptools timestamp check):
+   ```
+   AGR_BUILD_CMD="python3 -m pip install -e . --no-deps -q && python3 setup.py build_ext --inplace"
+   ```
+   Use `--no-deps`: a plain `pip install -e .` re-installs the repo's
+   `requirements.txt` and can swap wheels that the image already ships in a
+   headless-safe variant (real case: `opencv-python` GUI over
+   `opencv-python-headless`, breaking cv2 with `libxcb.so.1` errors).
+2. **Baseline/guard regenerated inside the container** - if the campaign's
+   guard compares against stored checksums generated on another toolchain
+   (e.g. Windows/MSVC), the Linux/GCC build inside the container may produce
+   different floats and the guard fails permanently. Regenerate the baseline
+   with the container's own build (`python3 benchmark.py --save`) BEFORE
+   launching the campaign, and document that in `program.md`.
+3. **Auth data dir** - newer opencode versions store `auth.json` under
+   `~/.local/share/opencode` on the host, NOT inside `.config/opencode`.
+   Without `OPENCODE_DATA_DIR` mounted, the agent runs with no credentials and
+   every iteration fails with an opaque "Unexpected server error" - hard to
+   spot because the loop keeps churning. Symptoms: iterations finishing in
+   seconds, empty `agr_logs/iter_*.log`.
+
+Also: `~/.config/opencode` often contains `node_modules/` (tens of MB,
+thousands of small files) whose copy through the Docker Desktop bind mount is
+pathologically slow. The entrypoint copies only top-level config files +
+`agents/` + `commands/`, so the auth mount stays fast.
+
 ## Quiet windows and cross-campaign mutex
 
 Two campaigns on the same machine share the thermal budget. Their
