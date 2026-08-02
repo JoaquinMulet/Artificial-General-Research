@@ -42,11 +42,13 @@ services:
       #   AGR_PROMPT_FILE  the agent's instructions file (default program.md)
       #   AGR_AGENT        the opencode agent definition (default agr-optimizer)
       #   AGR_RESULTS_FILE the campaign's results log (default results.tsv)
+      #   AGR_BUILD_CMD    one-shot build/install for native extensions (optional)
       AGR_BENCH_CMD: ${AGR_BENCH_CMD:-python3 benchmark.py}
       AGR_METRIC_KEY: ${AGR_METRIC_KEY:-total_time_s}
       AGR_PROMPT_FILE: ${AGR_PROMPT_FILE:-program.md}
       AGR_AGENT: ${AGR_AGENT:-agr-optimizer}
       AGR_RESULTS_FILE: ${AGR_RESULTS_FILE:-results.tsv}
+      AGR_BUILD_CMD: ${AGR_BUILD_CMD:-}
       AGR_STALL_MINUTES: ${AGR_STALL_MINUTES:-25}
       AGR_DRY_RUN: ${AGR_DRY_RUN:-0}
       # optional cross-campaign mutex (see README "quiet windows")
@@ -67,6 +69,9 @@ services:
       # agent auth: mounted read-only from the host (never baked into the
       # image); entrypoint copies it into a writable config dir
       - ${OPENCODE_CONFIG_DIR:-./auth/opencode}:/auth:ro
+      # opencode data dir (auth.json lives under ~/.local/share/opencode);
+      # optional: only needed for opencode versions that store auth there
+      - ${OPENCODE_DATA_DIR:-./auth/opencode-data}:/authdata:ro
     deploy:
       resources:
         limits:
