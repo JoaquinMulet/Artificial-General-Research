@@ -69,7 +69,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        path = self.path.split("?", 1)[0]
+        if path in ("/", "/index.html", "/dashboard.html"):
             page = read(os.path.join(DATA, "dashboard.html"))
             if page is not None:
                 self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
